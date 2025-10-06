@@ -13,6 +13,7 @@ Private Const ROOT_PATH As String = "Z:\O Operations\O17 CCR files\O17.04 220 kV
 
 Private gStats As SummaryStats
 Private gFSO As Object
+Private Const DICT_COMPARE_TEXT As Long = 1&
 
 Public Sub BuildFlashRecordReadings()
     Dim prevCalc As XlCalculation
@@ -46,6 +47,7 @@ Public Sub BuildFlashRecordReadings()
     ResetStats gStats
 
     Set dictReadings = CreateObject("Scripting.Dictionary")
+    dictReadings.CompareMode = DICT_COMPARE_TEXT
     dictReadings.CompareMode = vbTextCompare
 
     Set wsAll = EnsureOutputSheet("All Readings", Array( _
