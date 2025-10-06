@@ -48,12 +48,16 @@ Public Sub BuildFlashRecordReadings()
 
     Set dictReadings = CreateObject("Scripting.Dictionary")
     dictReadings.CompareMode = DICT_COMPARE_TEXT
+    dictReadings.CompareMode = vbTextCompare
 
     Set wsAll = EnsureOutputSheet("All Readings", Array( _
         "Time Stamp", "Meter 1 Import MWh", "Meter 1 Export MWh", _
         "Meter 1 Source File", "Meter 1 Source Row", "Meter 1 Source Address", _
         "Meter 2 Import MWh", "Meter 2 Export MWh", "Meter 2 Source File", _
         "Meter 2 Source Address"))
+    dictReadings.CompareMode = TextCompare
+
+    Set wsAll = EnsureOutputSheet("All Readings", Array("Time Stamp", "Meter 1 Import MWh", "Meter 1 Export MWh", "Meter 2 Import MWh", "Meter 2 Export MWh"))
     Set wsDaily = EnsureOutputSheet("Daily Readings", Array("Date", "Meter 1 Import (Sum)", "Meter 1 Export (Sum)", "Meter 2 Import (Sum)", "Meter 2 Export (Sum)"))
 
     Set wsErrors = EnsureLogSheet("_Errors", Array("File Path", "Line", "Raw Time Stamp", "Issue"))
@@ -177,6 +181,7 @@ Private Sub ProcessDataFile(ByVal filePath As String, ByVal dictReadings As Obje
             entry = dictReadings(key)
         Else
             ReDim entry(1 To 9)
+            ReDim entry(1 To 5)
             entry(1) = tsValue
             entry(2) = Empty
             entry(3) = Empty
@@ -356,12 +361,14 @@ Private Sub PopulateAllReadings(ByVal ws As Worksheet, ByVal records As Variant)
         "Meter 1 Source File", "Meter 1 Source Row", "Meter 1 Source Address", _
         "Meter 2 Import MWh", "Meter 2 Export MWh", "Meter 2 Source File", _
         "Meter 2 Source Address")
+    WriteHeaders ws, Array("Time Stamp", "Meter 1 Import MWh", "Meter 1 Export MWh", "Meter 2 Import MWh", "Meter 2 Export MWh")
 
     rowCount = GetArraySize(records)
     If rowCount > 0 Then
         lower = LBound(records)
         upper = UBound(records)
         ReDim dataArr(1 To rowCount, 1 To 10)
+        ReDim dataArr(1 To rowCount, 1 To 5)
         For i = lower To upper
             dataArr(i - lower + 1, 1) = records(i)(1)
             dataArr(i - lower + 1, 2) = ToDisplayValue(records(i)(2))
@@ -376,6 +383,11 @@ Private Sub PopulateAllReadings(ByVal ws As Worksheet, ByVal records As Variant)
         Next i
         ws.Range("A2").Resize(rowCount, 10).Value = dataArr
         Set tblRange = ws.Range("A1").Resize(rowCount + 1, 10)
+            dataArr(i - lower + 1, 4) = ToDisplayValue(records(i)(4))
+            dataArr(i - lower + 1, 5) = ToDisplayValue(records(i)(5))
+        Next i
+        ws.Range("A2").Resize(rowCount, 5).Value = dataArr
+        Set tblRange = ws.Range("A1").Resize(rowCount + 1, 5)
         On Error Resume Next
         ws.ListObjects("tblAllReadings").Delete
         On Error GoTo 0
@@ -395,6 +407,9 @@ Private Sub PopulateAllReadings(ByVal ws As Worksheet, ByVal records As Variant)
     ws.Columns("E").NumberFormat = "0"
     ws.Columns("D:F").NumberFormat = "@"
     ws.Columns("I:J").NumberFormat = "@"
+    ws.Columns("A:E").AutoFit
+    ws.Columns("A").NumberFormat = "dd.mmm.yyyy hh:mm"
+    ws.Columns("B:E").NumberFormat = "#,##0"
     ws.Rows(1).Font.Bold = True
 
     Set prevSheet = Nothing
