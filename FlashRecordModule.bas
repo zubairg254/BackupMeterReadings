@@ -46,6 +46,7 @@ Public Sub BuildFlashRecordReadings()
     ResetStats gStats
 
     Set dictReadings = CreateObject("Scripting.Dictionary")
+    dictReadings.CompareMode = vbTextCompare
     dictReadings.CompareMode = TextCompare
 
     Set wsAll = EnsureOutputSheet("All Readings", Array("Time Stamp", "Meter 1 Import MWh", "Meter 1 Export MWh", "Meter 2 Import MWh", "Meter 2 Export MWh"))
