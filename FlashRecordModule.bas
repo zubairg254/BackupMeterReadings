@@ -46,6 +46,13 @@ Public Sub BuildFlashRecordReadings()
     ResetStats gStats
 
     Set dictReadings = CreateObject("Scripting.Dictionary")
+    dictReadings.CompareMode = vbTextCompare
+
+    Set wsAll = EnsureOutputSheet("All Readings", Array( _
+        "Time Stamp", "Meter 1 Import MWh", "Meter 1 Export MWh", _
+        "Meter 1 Source File", "Meter 1 Source Row", "Meter 1 Source Address", _
+        "Meter 2 Import MWh", "Meter 2 Export MWh", "Meter 2 Source File", _
+        "Meter 2 Source Address"))
     dictReadings.CompareMode = TextCompare
 
     Set wsAll = EnsureOutputSheet("All Readings", Array("Time Stamp", "Meter 1 Import MWh", "Meter 1 Export MWh", "Meter 2 Import MWh", "Meter 2 Export MWh"))
@@ -171,12 +178,17 @@ Private Sub ProcessDataFile(ByVal filePath As String, ByVal dictReadings As Obje
         If dictReadings.Exists(key) Then
             entry = dictReadings(key)
         Else
+            ReDim entry(1 To 9)
             ReDim entry(1 To 5)
             entry(1) = tsValue
             entry(2) = Empty
             entry(3) = Empty
             entry(4) = Empty
             entry(5) = Empty
+            entry(6) = vbNullString
+            entry(7) = 0
+            entry(8) = vbNullString
+            entry(9) = 0
         End If
 
         If meterId = 1 Then
@@ -186,6 +198,8 @@ Private Sub ProcessDataFile(ByVal filePath As String, ByVal dictReadings As Obje
             End If
             entry(2) = importValue
             entry(3) = exportValue
+            entry(6) = filePath
+            entry(7) = lineNo
         Else
             If Not IsEmpty(entry(4)) Or Not IsEmpty(entry(5)) Then
                 LogDuplicate wsDuplicates, filePath, tsValue, meterLabel, "Replaced existing values"
@@ -193,6 +207,8 @@ Private Sub ProcessDataFile(ByVal filePath As String, ByVal dictReadings As Obje
             End If
             entry(4) = importValue
             entry(5) = exportValue
+            entry(8) = filePath
+            entry(9) = lineNo
         End If
 
         dictReadings(key) = entry
@@ -338,17 +354,33 @@ Private Sub PopulateAllReadings(ByVal ws As Worksheet, ByVal records As Variant)
     Dim upper As Long
 
     ws.Cells.Clear
+    WriteHeaders ws, Array( _
+        "Time Stamp", "Meter 1 Import MWh", "Meter 1 Export MWh", _
+        "Meter 1 Source File", "Meter 1 Source Row", "Meter 1 Source Address", _
+        "Meter 2 Import MWh", "Meter 2 Export MWh", "Meter 2 Source File", _
+        "Meter 2 Source Address")
     WriteHeaders ws, Array("Time Stamp", "Meter 1 Import MWh", "Meter 1 Export MWh", "Meter 2 Import MWh", "Meter 2 Export MWh")
 
     rowCount = GetArraySize(records)
     If rowCount > 0 Then
         lower = LBound(records)
         upper = UBound(records)
+        ReDim dataArr(1 To rowCount, 1 To 10)
         ReDim dataArr(1 To rowCount, 1 To 5)
         For i = lower To upper
             dataArr(i - lower + 1, 1) = records(i)(1)
             dataArr(i - lower + 1, 2) = ToDisplayValue(records(i)(2))
             dataArr(i - lower + 1, 3) = ToDisplayValue(records(i)(3))
+            dataArr(i - lower + 1, 4) = ToDisplayValue(records(i)(6))
+            dataArr(i - lower + 1, 5) = ToSourceRowValue(records(i)(7))
+            dataArr(i - lower + 1, 6) = FormatSourceAddress(records(i)(6), records(i)(7))
+            dataArr(i - lower + 1, 7) = ToDisplayValue(records(i)(4))
+            dataArr(i - lower + 1, 8) = ToDisplayValue(records(i)(5))
+            dataArr(i - lower + 1, 9) = ToDisplayValue(records(i)(8))
+            dataArr(i - lower + 1, 10) = FormatSourceAddress(records(i)(8), records(i)(9))
+        Next i
+        ws.Range("A2").Resize(rowCount, 10).Value = dataArr
+        Set tblRange = ws.Range("A1").Resize(rowCount + 1, 10)
             dataArr(i - lower + 1, 4) = ToDisplayValue(records(i)(4))
             dataArr(i - lower + 1, 5) = ToDisplayValue(records(i)(5))
         Next i
@@ -366,6 +398,13 @@ Private Sub PopulateAllReadings(ByVal ws As Worksheet, ByVal records As Variant)
         On Error GoTo 0
     End If
 
+    ws.Columns("A:J").AutoFit
+    ws.Columns("A").NumberFormat = "dd.mmm.yyyy hh:mm"
+    ws.Columns("B:C").NumberFormat = "#,##0"
+    ws.Columns("G:H").NumberFormat = "#,##0"
+    ws.Columns("E").NumberFormat = "0"
+    ws.Columns("D:F").NumberFormat = "@"
+    ws.Columns("I:J").NumberFormat = "@"
     ws.Columns("A:E").AutoFit
     ws.Columns("A").NumberFormat = "dd.mmm.yyyy hh:mm"
     ws.Columns("B:E").NumberFormat = "#,##0"
@@ -575,6 +614,30 @@ Private Function ToDisplayValue(ByVal value As Variant) As Variant
         ToDisplayValue = vbNullString
     Else
         ToDisplayValue = value
+    End If
+End Function
+
+Private Function ToSourceRowValue(ByVal value As Variant) As Variant
+    If IsNumeric(value) Then
+        If CLng(value) > 0 Then
+            ToSourceRowValue = CLng(value)
+        Else
+            ToSourceRowValue = vbNullString
+        End If
+    Else
+        ToSourceRowValue = vbNullString
+    End If
+End Function
+
+Private Function FormatSourceAddress(ByVal filePath As Variant, ByVal rowNumber As Variant) As Variant
+    If (IsEmpty(filePath) Or IsNull(filePath) Or filePath = vbNullString) Then
+        FormatSourceAddress = vbNullString
+    ElseIf Not IsNumeric(rowNumber) Then
+        FormatSourceAddress = CStr(filePath)
+    ElseIf CLng(rowNumber) <= 0 Then
+        FormatSourceAddress = CStr(filePath)
+    Else
+        FormatSourceAddress = CStr(filePath) & " [Row " & CStr(CLng(rowNumber)) & "]"
     End If
 End Function
 
